@@ -25,7 +25,7 @@ public class ShortUrlServiceImpl implements ShortUrlService {
   private static final String KEY_PREFIX = "short_url_";
   private static final String BY_ORIGINAL_PREFIX = KEY_PREFIX + "by_orig:";
   private static final String BY_KEY_PREFIX = KEY_PREFIX + "by_key:";
-  private static final Duration CACHE_TTL = Duration.ofHours(24); // optional
+  private static final Duration CACHE_TTL = Duration.ofHours(24);
 
 
   @Override
