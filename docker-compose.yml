@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:12.2-alpine
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: short_url_db
+
+  redis:
+    image: redis:latest
+    container_name: short_url_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: always
+
+volumes:
+  redis-data:
