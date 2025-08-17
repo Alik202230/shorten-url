@@ -15,6 +15,7 @@ public final class ShortUrlMapper {
         .originalUrl(shortUrl.getOriginalUrl())
         .clickCount(shortUrl.getClickCount())
         .isActive(shortUrl.getIsActive())
+        .user(shortUrl.getUser())
         .build();
   }
 

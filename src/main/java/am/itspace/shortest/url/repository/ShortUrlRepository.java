@@ -2,6 +2,9 @@ package am.itspace.shortest.url.repository;
 
 import am.itspace.shortest.url.model.ShortUrl;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,4 +16,9 @@ public interface ShortUrlRepository extends JpaRepository<ShortUrl, Long> {
   boolean existsByShortKey(String shortKey);
 
   List<ShortUrl> findByIsActiveFalse();
+
+  @Modifying
+  @Query("update ShortUrl s set s.isActive = true, s.clickCount = s.clickCount + 1 where s.shortKey = :shortKey")
+  int incrementClickCount(@Param("shortKey") String shortKey);
+
 }

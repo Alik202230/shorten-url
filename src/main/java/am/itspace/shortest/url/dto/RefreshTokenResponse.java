@@ -1,6 +1,5 @@
 package am.itspace.shortest.url.dto;
 
-import am.itspace.shortest.url.model.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,12 +11,8 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ShortUrlResponse {
-
-  private Long id;
-  private String shortKey;
-  private String originalUrl;
-  private Integer clickCount;
-  private Boolean isActive;
-  private User user;
+public class RefreshTokenResponse {
+  private String accessToken;
+  private String refreshToken;
+  private int statusCode;
 }

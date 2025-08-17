@@ -5,13 +5,18 @@ import am.itspace.shortest.url.dto.ShortUrlResponse;
 import am.itspace.shortest.url.dto.ShortUrlStatusAndCountResponse;
 import am.itspace.shortest.url.mapper.ShortUrlMapper;
 import am.itspace.shortest.url.model.ShortUrl;
+import am.itspace.shortest.url.model.User;
 import am.itspace.shortest.url.repository.ShortUrlRepository;
+import am.itspace.shortest.url.repository.UserRepository;
 import am.itspace.shortest.url.service.ShortUrlService;
 import am.itspace.shortest.url.util.ShortUrlUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -22,14 +27,23 @@ public class ShortUrlServiceImpl implements ShortUrlService {
 
   private final ShortUrlRepository shortUrlRepository;
   private final RedisTemplate<String, Object> redisTemplate;
+  private final UserRepository userRepository;
+
   private static final String KEY_PREFIX = "short_url_";
   private static final String BY_ORIGINAL_PREFIX = KEY_PREFIX + "by_orig:";
   private static final String BY_KEY_PREFIX = KEY_PREFIX + "by_key:";
   private static final Duration CACHE_TTL = Duration.ofHours(24);
+  private static final String BY_KEY_CLICK_COUNT_PREFIX = "shortUrl:clicks:"; // 👈 Here is the new prefix
 
 
   @Override
   public ShortUrlResponse createShortUrl(ShortUrlRequest request) {
+
+    Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    String username = ((UserDetails) principal).getUsername();
+
+    User user = userRepository.findByEmail(username)
+        .orElseThrow(() -> new RuntimeException("User not found"));
 
     String originalUrlKey = BY_ORIGINAL_PREFIX + request.getOriginalUrl();
     ShortUrl cachedShortUrl = (ShortUrl) redisTemplate.opsForValue().get(originalUrlKey);
@@ -57,6 +71,7 @@ public class ShortUrlServiceImpl implements ShortUrlService {
         .originalUrl(request.getOriginalUrl())
         .shortKey(shortKey)
         .isActive(false)
+        .user(user)
         .clickCount(0)
         .build();
 
@@ -73,23 +88,22 @@ public class ShortUrlServiceImpl implements ShortUrlService {
   @Override
   @Cacheable(cacheNames = "shortUrl", key = "#shortKey")
   public Optional<String> getOriginalUrl(String shortKey) {
+    String clickCountKey = BY_KEY_CLICK_COUNT_PREFIX + shortKey;
+
     ShortUrl cached = (ShortUrl) redisTemplate.opsForValue().get(BY_KEY_PREFIX + shortKey);
     if (cached != null) {
-      redisTemplate.opsForValue().increment(BY_KEY_PREFIX + shortKey);
+      redisTemplate.opsForValue().increment(clickCountKey);
       return Optional.of(cached.getOriginalUrl());
     }
+
     return shortUrlRepository.findByShortKey(shortKey)
         .map(ShortUrl::getOriginalUrl);
   }
 
   @Override
+  @Transactional
   public void updateClickCount(String shortKey) {
-    shortUrlRepository.findByShortKey(shortKey)
-        .ifPresent(shortUrl -> {
-          shortUrl.setClickCount(shortUrl.getClickCount() + 1);
-          shortUrl.setIsActive(true);
-          shortUrlRepository.save(shortUrl);
-        });
+    shortUrlRepository.incrementClickCount(shortKey);
   }
 
   @Override
