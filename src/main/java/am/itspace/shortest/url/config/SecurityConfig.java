@@ -24,56 +24,55 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 public class SecurityConfig {
 
 
-  private final UserDetailsService userDetailsService;
-  private final JwtAuthenticationEntryPoint authenticationEntryPoint;
-  private final JwtAuthenticationTokenFilter jwtAuthenticationTokenFilter;
-  private final LogoutHandler logoutHandler;
+    private final UserDetailsService userDetailsService;
+    private final JwtAuthenticationEntryPoint authenticationEntryPoint;
+    private final JwtAuthenticationTokenFilter jwtAuthenticationTokenFilter;
+    private final LogoutHandler logoutHandler;
 
-  @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
-    httpSecurity
-        .cors(Customizer.withDefaults())
-        .csrf(AbstractHttpConfigurer::disable)
-        .exceptionHandling(exception -> exception
-            .authenticationEntryPoint(authenticationEntryPoint)
-        )
-        .sessionManagement(session -> session
-            .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        )
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/shorten").permitAll()
-            .requestMatchers("/{shortKey}").permitAll()
-            .requestMatchers("/status/{shortKey}").permitAll()
-            .requestMatchers("/user/register").permitAll()
-            .requestMatchers("/user/login").permitAll()
-            .requestMatchers("/user/refresh-token").permitAll()
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
+        httpSecurity
+                .cors(Customizer.withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                )
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/shorten").permitAll()
+                        .requestMatchers("/{shortKey}").permitAll()
+                        .requestMatchers("/status/{shortKey}").permitAll()
+                        .requestMatchers("/user/register").permitAll()
+                        .requestMatchers("/user/login").permitAll()
+                        .requestMatchers("/user/refresh-token").permitAll()
+                )
+                .addFilterBefore(jwtAuthenticationTokenFilter, UsernamePasswordAuthenticationFilter.class)
+                .rememberMe(remember -> remember.key("nfownfownf")
+                        .tokenValiditySeconds(233344)
+                        .rememberMeParameter("remember-me")
+                        .rememberMeCookieName("weomoefmeof"))
+                .logout()
+                .logoutUrl("/user/logout")
+                .addLogoutHandler(logoutHandler)
+                .logoutSuccessHandler((request, response, authentication) ->
+                        SecurityContextHolder.clearContext());
+        return httpSecurity.build();
+    }
 
-        )
-        .addFilterBefore(jwtAuthenticationTokenFilter, UsernamePasswordAuthenticationFilter.class)
-        .rememberMe(remember -> remember.key("nfownfownf")
-            .tokenValiditySeconds(233344)
-            .rememberMeParameter("remember-me")
-            .rememberMeCookieName("weomoefmeof"))
-        .logout()
-        .logoutUrl("/user/logout")
-        .addLogoutHandler(logoutHandler)
-        .logoutSuccessHandler((request, response, authentication) ->
-            SecurityContextHolder.clearContext());
-    return httpSecurity.build();
-  }
 
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
+        authenticationProvider.setUserDetailsService(userDetailsService);
+        authenticationProvider.setPasswordEncoder(passwordEncoder());
+        return authenticationProvider;
+    }
 
-  @Bean
-  public AuthenticationProvider authenticationProvider() {
-    DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
-    authenticationProvider.setUserDetailsService(userDetailsService);
-    authenticationProvider.setPasswordEncoder(passwordEncoder());
-    return authenticationProvider;
-  }
-
-  @Bean
-  public PasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder();
-  }
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
 }

@@ -1,10 +1,9 @@
 package am.itspace.shortest.url.controller;
 
-import am.itspace.shortest.url.dto.ShortUrlRequest;
-import am.itspace.shortest.url.dto.ShortUrlResponse;
+import am.itspace.shortest.url.dto.request.ShortUrlRequest;
+import am.itspace.shortest.url.dto.response.ShortUrlResponse;
 import am.itspace.shortest.url.model.ShortUrl;
 import am.itspace.shortest.url.model.User;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

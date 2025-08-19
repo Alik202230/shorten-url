@@ -1,0 +1,75 @@
+#-------------------------------------------------------------------------------#
+#               Qodana analysis is configured by qodana.yaml file               #
+#             https://www.jetbrains.com/help/qodana/qodana-yaml.html            #
+#-------------------------------------------------------------------------------#
+version: "1.0"
+#Specify inspection profile for code analysis
+profile:
+  name: qodana.starter
+projectJDK: "21"
+linter: jetbrains/qodana-jvm:2024.3
+
+include:
+  - name: ExceptionNameDoesntEndWithException
+  - name: "Java8CollectionRemoveIf"
+  - name: "StaticPseudoFunctionalStyleMethod"
+  - name: "TryFinallyCanBeTryWithResources"
+  - name: "UseCompareMethod"
+  - name: "StreamToLoop"
+  - name: "BulkFileAttributesRead"
+  - name: "CollectionAddAllCanBeReplacedWithConstructor"
+  - name: "OptionalIsPresent"
+  - name: "Java8ListSort"
+  - name: "Java8MapApi"
+  - name: "Java8MapForEach"
+  - name: DuplicatedCode
+  - name: ProblematicWhitespace
+  - name: BooleanParameter
+  - name: InstanceofChain
+  - name: ClassReferencesSubclass
+  - name: MagicNumber
+  - name: TypeMayBeWeakened
+  - name: AbstractClassWithOnlyOneDirectInheritor
+  - name: ArrayLengthInLoopCondition
+  - name: PrivateMemberAccessBetweenOuterAndInnerClass
+  - name: SingleCharacterStartsWith
+  - name: ObjectEqualsCanBeEquality
+  - name: MapReplaceableByEnumMap
+  - name: ArraysAsListWithZeroOrOneArgument
+  - name: DynamicRegexReplaceableByCompiledPattern
+  - name: ExplicitArgumentCanBeLambda
+  - name: FieldMayBeStatic
+  - name: MethodMayBeStatic
+  - name: TailRecursion
+  - name: RandomDoubleForRandomInteger
+  - name: MethodNameSameAsClassName
+  - name: NewMethodNamingConvention
+  - name: FieldNamingConvention
+  - name: LocalVariableNamingConvention
+  - name: QuestionableName
+  - name: DollarSignInName
+  - name: SetReplaceableByEnumSet
+  - name: StringEqualsEmptyString
+  - name: StringBufferMustHaveInitialCapacity
+  - name: KeySetIterationMayUseEntrySet
+  - name: LengthOneStringInIndexOf
+  - name: LengthOneStringsInConcatenation
+  - name: SleepWhileHoldingLock
+  - name: SynchronizationOnStaticField
+  - name: FinalMethodInFinalClass
+  - name: ProtectedMemberInFinalClass
+  - name: AccessStaticViaInstance
+  - name: DuplicateThrows
+  - name: UnusedReturnValue
+  - name: RedundantExplicitClose
+  - name: RedundantLambdaParameterType
+  - name: MavenDuplicateDependenciesInspection
+  - name: MavenDuplicatePluginInspection
+  - name: SmallRyeConfigMappingMissingPrefixInspection
+  - name: QsUndeclaredPathMimeTypesInspection
+  - name: QsPrivateBeanMembersInspection
+  - name: JvmLinesOfCodeInspection
+  - name: CanBeFinal
+  - name: RedundantThrows
+  - name: CyclicClassDependency
+  - name: OnDemandImport

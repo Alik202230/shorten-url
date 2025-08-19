@@ -11,12 +11,12 @@ import java.util.Optional;
 @Repository
 public interface TokenRepository extends JpaRepository<Token, Long> {
 
-  @Query("""
-           SELECT t FROM Token t INNER JOIN User u ON t.user.id = u.id
-           WHERE u.id = :userId AND (t.isExpired = false or t.revoked = false )
-      """)
-  List<Token> findAllValidTokensByUserId(Long userId);
+    @Query("""
+                 SELECT t FROM Token t INNER JOIN User u ON t.user.id = u.id
+                 WHERE u.id = :userId AND (t.isExpired = false or t.revoked = false )
+            """)
+    List<Token> findAllValidTokensByUserId(Long userId);
 
-  Optional<Token> findByAccessToken(String token);
+    Optional<Token> findByAccessToken(String token);
 
 }
