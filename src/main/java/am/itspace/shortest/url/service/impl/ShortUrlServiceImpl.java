@@ -8,13 +8,12 @@ import am.itspace.shortest.url.model.ShortUrl;
 import am.itspace.shortest.url.model.User;
 import am.itspace.shortest.url.repository.ShortUrlRepository;
 import am.itspace.shortest.url.repository.UserRepository;
+import am.itspace.shortest.url.security.CurrentUser;
 import am.itspace.shortest.url.service.ShortUrlService;
 import am.itspace.shortest.url.util.ShortUrlUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,33 +32,19 @@ public class ShortUrlServiceImpl implements ShortUrlService {
   private static final String BY_ORIGINAL_PREFIX = KEY_PREFIX + "by_orig:";
   private static final String BY_KEY_PREFIX = KEY_PREFIX + "by_key:";
   private static final Duration CACHE_TTL = Duration.ofHours(24);
-  private static final String BY_KEY_CLICK_COUNT_PREFIX = "shortUrl:clicks:"; // 👈 Here is the new prefix
+  private static final String BY_KEY_CLICK_COUNT_PREFIX = "shortUrl:clicks:";
 
 
   @Override
-  public ShortUrlResponse createShortUrl(ShortUrlRequest request) {
+  public ShortUrlResponse createShortUrl(ShortUrlRequest request, CurrentUser currentUser) {
 
-    Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    String username = ((UserDetails) principal).getUsername();
-
-    User user = userRepository.findByEmail(username)
+    User user = userRepository.findById(currentUser.getUser().getId())
         .orElseThrow(() -> new RuntimeException("User not found"));
 
     String originalUrlKey = BY_ORIGINAL_PREFIX + request.getOriginalUrl();
     ShortUrl cachedShortUrl = (ShortUrl) redisTemplate.opsForValue().get(originalUrlKey);
 
-    if (cachedShortUrl != null) {
-      return ShortUrlMapper.toShortUrlResponse(cachedShortUrl);
-    }
-
     Optional<ShortUrl> existing = shortUrlRepository.findByOriginalUrl(request.getOriginalUrl());
-
-    if (existing.isPresent()) {
-      ShortUrl found = existing.get();
-      cacheBoth(found);
-      return ShortUrlMapper.toShortUrlResponse(found);
-
-    }
 
     String shortKey;
 
@@ -76,6 +61,16 @@ public class ShortUrlServiceImpl implements ShortUrlService {
         .build();
 
     ShortUrl savedUrl = shortUrlRepository.save(shortUrl);
+
+    if (cachedShortUrl != null) {
+      return ShortUrlMapper.toShortUrlResponse(cachedShortUrl);
+    }
+
+    if (existing.isPresent()) {
+      ShortUrl found = existing.get();
+      cacheBoth(found);
+      return ShortUrlMapper.toShortUrlResponse(found);
+    }
 
     cacheBoth(savedUrl);
 

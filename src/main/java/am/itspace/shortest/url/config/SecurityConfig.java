@@ -1,6 +1,6 @@
 package am.itspace.shortest.url.config;
 
-import am.itspace.shortest.url.JwtAuthenticationTokenFilter;
+import am.itspace.shortest.url.filter.JwtAuthenticationTokenFilter;
 import am.itspace.shortest.url.security.JwtAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

@@ -1,4 +1,4 @@
-package am.itspace.shortest.url;
+package am.itspace.shortest.url.filter;
 
 import am.itspace.shortest.url.repository.TokenRepository;
 import am.itspace.shortest.url.util.jwt.JwtTokenUtil;

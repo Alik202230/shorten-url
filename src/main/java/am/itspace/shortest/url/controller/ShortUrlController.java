@@ -3,11 +3,13 @@ package am.itspace.shortest.url.controller;
 import am.itspace.shortest.url.dto.ShortUrlRequest;
 import am.itspace.shortest.url.dto.ShortUrlResponse;
 import am.itspace.shortest.url.dto.ShortUrlStatusAndCountResponse;
+import am.itspace.shortest.url.security.CurrentUser;
 import am.itspace.shortest.url.service.ShortUrlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,8 +26,8 @@ public class ShortUrlController {
   private final ShortUrlService shortUrlService;
 
   @PostMapping("/shorten")
-  public ResponseEntity<ShortUrlResponse> createShortUrl(@RequestBody ShortUrlRequest originalUrl) {
-    ShortUrlResponse response = shortUrlService.createShortUrl(originalUrl);
+  public ResponseEntity<ShortUrlResponse> createShortUrl(@RequestBody ShortUrlRequest originalUrl, @AuthenticationPrincipal CurrentUser currentUser) {
+    ShortUrlResponse response = shortUrlService.createShortUrl(originalUrl, currentUser);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
