@@ -8,6 +8,7 @@ import am.itspace.shortest.url.dto.response.UserAuthResponse;
 import am.itspace.shortest.url.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,23 +24,23 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserService userService;
+  private final UserService userService;
 
-    @PostMapping("/register")
-    public ResponseEntity<Void> register(@RequestBody SaveUserRequest saveUserRequest) {
-        userService.register(saveUserRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
+  @PostMapping("/register")
+  public ResponseEntity<Void> register(@RequestBody @Valid SaveUserRequest saveUserRequest) {
+    userService.register(saveUserRequest);
+    return ResponseEntity.status(HttpStatus.CREATED).build();
+  }
 
-    @PostMapping("/login")
-    public ResponseEntity<Optional<UserAuthResponse>> login(@RequestBody UserAuthRequest userAuthRequest) {
-        Optional<UserAuthResponse> response = userService.login(userAuthRequest);
-        return ResponseEntity.status(HttpStatus.OK).body(response);
-    }
+  @PostMapping("/login")
+  public ResponseEntity<Optional<UserAuthResponse>> login(@RequestBody @Valid UserAuthRequest userAuthRequest) {
+    Optional<UserAuthResponse> response = userService.login(userAuthRequest);
+    return ResponseEntity.status(HttpStatus.OK).body(response);
+  }
 
-    @PostMapping("/refresh-token")
-    public RefreshTokenResponse refreshToken(HttpServletRequest request, HttpServletResponse response) {
-        return userService.refreshToken(request, response);
-    }
+  @PostMapping("/refresh-token")
+  public RefreshTokenResponse refreshToken(HttpServletRequest request, HttpServletResponse response) {
+    return userService.refreshToken(request, response);
+  }
 
 }

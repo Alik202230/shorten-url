@@ -4,11 +4,16 @@ import am.itspace.shortest.url.dto.request.SaveUserRequest;
 import am.itspace.shortest.url.dto.request.UserAuthRequest;
 import am.itspace.shortest.url.dto.response.RefreshTokenResponse;
 import am.itspace.shortest.url.dto.response.UserAuthResponse;
+import am.itspace.shortest.url.exception.EmailOrPasswordException;
+import am.itspace.shortest.url.exception.UserAlreadyExistsException;
+import am.itspace.shortest.url.exception.UserNotFoundException;
 import am.itspace.shortest.url.mapper.UserMapper;
+import am.itspace.shortest.url.model.ShortUrl;
 import am.itspace.shortest.url.model.Token;
 import am.itspace.shortest.url.model.User;
 import am.itspace.shortest.url.model.enums.Role;
 import am.itspace.shortest.url.model.enums.TokenType;
+import am.itspace.shortest.url.repository.ShortUrlRepository;
 import am.itspace.shortest.url.repository.TokenRepository;
 import am.itspace.shortest.url.repository.UserRepository;
 import am.itspace.shortest.url.service.UserService;
@@ -19,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,123 +33,130 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository;
-    private final JwtTokenUtil jwtTokenUtil;
-    private final PasswordEncoder passwordEncoder;
-    private final TokenRepository tokenRepository;
+  private final UserRepository userRepository;
+  private final JwtTokenUtil jwtTokenUtil;
+  private final PasswordEncoder passwordEncoder;
+  private final TokenRepository tokenRepository;
+  private final ShortUrlRepository shortUrlRepository;
 
-    @Override
-    public void register(SaveUserRequest request) {
+  @Override
+  @Transactional
+  public void register(SaveUserRequest request) {
 
-        if (userRepository.findByEmail(request.getEmail()).isPresent())
-            throw new RuntimeException("User with " + request.getEmail() + " already exists");
+    if (userRepository.findByEmail(request.getEmail()).isPresent())
+      throw new UserAlreadyExistsException("User with " + request.getEmail() + " already exists");
 
-        final String encodedPassword = passwordEncoder.encode(request.getPassword());
+    final String encodedPassword = passwordEncoder.encode(request.getPassword());
 
-        User user = User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .password(encodedPassword)
-                .role(Role.USER)
-                .build();
+    ShortUrl shortUrl = shortUrlRepository.findByOriginalUrl(request.getOriginalUrl())
+        .orElseGet(() -> shortUrlRepository.save(ShortUrl.builder().originalUrl(request.getOriginalUrl()).build()));
 
-        final String accessToken = jwtTokenUtil.generateToken(user.getEmail());
-        final String refreshToken = jwtTokenUtil.refreshToken(accessToken);
-        User savedUser = this.userRepository.save(user);
+    User user = User.builder()
+        .firstName(request.getFirstName())
+        .lastName(request.getLastName())
+        .email(request.getEmail())
+        .password(encodedPassword)
+        .shortUrl(shortUrl)
+        .role(Role.USER)
+        .build();
 
-        saveUserToken(savedUser, accessToken, refreshToken);
 
-        UserAuthResponse.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .build();
+    final String accessToken = jwtTokenUtil.generateToken(user.getEmail());
+    final String refreshToken = jwtTokenUtil.refreshToken(accessToken);
+    User savedUser = this.userRepository.save(user);
+
+    saveUserToken(savedUser, accessToken, refreshToken);
+
+    UserAuthResponse.builder()
+        .firstName(request.getFirstName())
+        .lastName(request.getLastName())
+        .accessToken(accessToken)
+        .refreshToken(refreshToken)
+        .build();
+  }
+
+
+  @Override
+  public Optional<UserAuthResponse> login(UserAuthRequest request) {
+    Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
+
+    if (optionalUser.isEmpty())
+      throw new UserNotFoundException("User with email " + request.getEmail() + " not found");
+
+    User user = optionalUser.get();
+
+    if (!passwordEncoder.matches(request.getPassword(), user.getPassword()))
+      throw new EmailOrPasswordException("Wrong password or email");
+
+    final String accessToken = jwtTokenUtil.generateToken(user.getEmail());
+    final String refreshToken = jwtTokenUtil.refreshToken(accessToken);
+
+    UserAuthResponse response = UserMapper.toAuthResponse(user);
+
+    response.setAccessToken(accessToken);
+    response.setRefreshToken(refreshToken);
+    revokeAllUserTokens(user);
+    saveUserToken(user, accessToken, refreshToken);
+
+    return Optional.of(response);
+
+  }
+
+  @Override
+  public RefreshTokenResponse refreshToken(HttpServletRequest request, HttpServletResponse response) {
+    String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+    if (header == null && !header.startsWith("Bearer ")) {
+      return null;
     }
 
+    String token = header.substring(7);
+    String username = jwtTokenUtil.getUsernameFromToken(token);
 
-    @Override
-    public Optional<UserAuthResponse> login(UserAuthRequest request) {
-        Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
+    User user = userRepository.findByEmail(username)
+        .orElseThrow(() -> new RuntimeException("User with email " + username + " not found"));
 
-        if (optionalUser.isEmpty())
-            throw new RuntimeException("User with email " + request.getEmail() + " not found");
+    if (jwtTokenUtil.validateToken(token, username)) {
 
-        User user = optionalUser.get();
+      final String accessToken = jwtTokenUtil.generateToken(user.getEmail());
+      final String refreshToken = jwtTokenUtil.refreshToken(accessToken);
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword()))
-            throw new RuntimeException("Wrong password or email");
+      revokeAllUserTokens(user);
+      saveUserToken(user, accessToken, refreshToken);
 
-        final String accessToken = jwtTokenUtil.generateToken(user.getEmail());
-        final String refreshToken = jwtTokenUtil.refreshToken(accessToken);
-
-        UserAuthResponse response = UserMapper.toAuthResponse(user);
-
-        response.setAccessToken(accessToken);
-        response.setRefreshToken(refreshToken);
-        revokeAllUserTokens(user);
-        saveUserToken(user, accessToken, refreshToken);
-
-        return Optional.of(response);
-
+      return RefreshTokenResponse.builder()
+          .accessToken(accessToken)
+          .refreshToken(refreshToken)
+          .statusCode(HttpServletResponse.SC_OK)
+          .build();
     }
 
-    @Override
-    public RefreshTokenResponse refreshToken(HttpServletRequest request, HttpServletResponse response) {
-        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header == null && !header.startsWith("Bearer ")) {
-            return null;
-        }
+    return null;
+  }
 
-        String token = header.substring(7);
-        String username = jwtTokenUtil.getUsernameFromToken(token);
+  public void revokeAllUserTokens(User user) {
+    List<Token> validUserTokens = this.tokenRepository.findAllValidTokensByUserId(user.getId());
 
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("User with email " + username + " not found"));
+    if (validUserTokens.isEmpty()) return;
 
-        if (jwtTokenUtil.validateToken(token, username)) {
+    validUserTokens.forEach(token -> {
+      token.setRevoked(true);
+      token.setExpired(true);
+    });
 
-            final String accessToken = jwtTokenUtil.generateToken(user.getEmail());
-            final String refreshToken = jwtTokenUtil.refreshToken(accessToken);
+    this.tokenRepository.saveAll(validUserTokens);
+  }
 
-            revokeAllUserTokens(user);
-            saveUserToken(user, accessToken, refreshToken);
+  public void saveUserToken(User user, String accessToken, String refreshToken) {
+    Token token = Token.builder()
+        .user(user)
+        .accessToken(accessToken)
+        .refreshToken(refreshToken)
+        .type(TokenType.BEARER)
+        .isExpired(false)
+        .revoked(false)
+        .build();
 
-            return RefreshTokenResponse.builder()
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken)
-                    .statusCode(HttpServletResponse.SC_OK)
-                    .build();
-        }
-
-        return null;
-    }
-
-    public void revokeAllUserTokens(User user) {
-        List<Token> validUserTokens = this.tokenRepository.findAllValidTokensByUserId(user.getId());
-
-        if (validUserTokens.isEmpty()) return;
-
-        validUserTokens.forEach(token -> {
-            token.setRevoked(true);
-            token.setExpired(true);
-        });
-
-        this.tokenRepository.saveAll(validUserTokens);
-    }
-
-    public void saveUserToken(User user, String accessToken, String refreshToken) {
-        Token token = Token.builder()
-                .user(user)
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .type(TokenType.BEARER)
-                .isExpired(false)
-                .revoked(false)
-                .build();
-
-        this.tokenRepository.save(token);
-    }
+    this.tokenRepository.save(token);
+  }
 
 }

@@ -1,14 +1,14 @@
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/short_url_db
+    url: jdbc:postgresql://${POSTGRES_HOST}/${DB_URL}
     username: ${POSTGRES_USERNAME}
     password: ${POSTGRES_PWD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update   # options: none | validate | update | create | create-drop
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
@@ -19,10 +19,10 @@ spring:
     type: redis
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
 
 
 jwt:
-  secret: YXNkZmYkIyNzZFNEU0RBQVNERksjQEBkc2ZqZGZrZHNqQEAjZHNmZ2ZnZmdeXiYmWipeJSQkI2RzZHMkIyVzZDQ1MDk5KUkjJCg5V0ZTSUo=
-  expiration: 86400000
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION}

@@ -9,12 +9,12 @@ import java.util.Optional;
 
 public interface ShortUrlService {
 
-    ShortUrlResponse createShortUrl(ShortUrlRequest request, CurrentUser currentUser);
+  ShortUrlResponse createShortUrl(ShortUrlRequest request, CurrentUser currentUser);
 
-    Optional<String> getOriginalUrl(String shortKey);
+  Optional<String> getOriginalUrl(String shortKey);
 
-    void updateClickCount(String shortKey);
+  void updateClickCount(String shortKey);
 
-    Optional<ShortUrlStatusAndCountResponse> getStatusAndClickCount(String shortKey);
+  Optional<ShortUrlStatusAndCountResponse> getStatusAndClickCount(String shortKey);
 
 }

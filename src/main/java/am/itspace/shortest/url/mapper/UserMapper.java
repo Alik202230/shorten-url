@@ -6,18 +6,18 @@ import org.springframework.http.HttpStatus;
 
 public final class UserMapper {
 
-    private UserMapper() {
-    }
+  private UserMapper() {
+  }
 
-    public static UserAuthResponse toAuthResponse(User user) {
-        return UserAuthResponse.builder()
-                .userId(user.getId())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .accessToken(user.getEmail())
-                .role(user.getRole())
-                .statusCode(HttpStatus.OK.value())
-                .build();
-    }
+  public static UserAuthResponse toAuthResponse(User user) {
+    return UserAuthResponse.builder()
+        .userId(user.getId())
+        .firstName(user.getFirstName())
+        .lastName(user.getLastName())
+        .accessToken(user.getEmail())
+        .role(user.getRole())
+        .statusCode(HttpStatus.OK.value())
+        .build();
+  }
 
 }

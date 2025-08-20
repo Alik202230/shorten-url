@@ -11,10 +11,10 @@ import java.util.Optional;
 
 public interface UserService {
 
-    void register(SaveUserRequest request);
+  void register(SaveUserRequest request);
 
-    Optional<UserAuthResponse> login(UserAuthRequest request);
+  Optional<UserAuthResponse> login(UserAuthRequest request);
 
-    RefreshTokenResponse refreshToken(HttpServletRequest request, HttpServletResponse response);
+  RefreshTokenResponse refreshToken(HttpServletRequest request, HttpServletResponse response);
 
 }

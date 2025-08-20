@@ -11,16 +11,16 @@ import java.util.Optional;
 
 public interface ShortUrlRepository extends JpaRepository<ShortUrl, Long> {
 
-    Optional<ShortUrl> findByShortKey(String shortKey);
+  Optional<ShortUrl> findByShortKey(String shortKey);
 
-    Optional<ShortUrl> findByOriginalUrl(String originalUrl);
+  Optional<ShortUrl> findByOriginalUrl(String originalUrl);
 
-    boolean existsByShortKey(String shortKey);
+  boolean existsByShortKey(String shortKey);
 
-    List<ShortUrl> findByIsActiveFalse();
+  List<ShortUrl> findByIsActiveFalse();
 
-    @Modifying
-    @Query("update ShortUrl s set s.isActive = true, s.clickCount = s.clickCount + 1 where s.shortKey = :shortKey")
-    void incrementClickCount(@Param("shortKey") String shortKey);
+  @Modifying
+  @Query("update ShortUrl s set s.isActive = true, s.clickCount = s.clickCount + 1 where s.shortKey = :shortKey")
+  void incrementClickCount(@Param("shortKey") String shortKey);
 
 }
