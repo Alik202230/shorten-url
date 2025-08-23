@@ -14,13 +14,12 @@ import java.util.*;
 @RequiredArgsConstructor
 public class ShortUrlScheduler {
 
-  public static final String SHORTURL_CLICKS = "shorturl:clicks:*";
-  public static final String SHORTURL_CLICKS1 = "shorturl:clicks:";
   private final ShortUrlRepository shortUrlRepository;
   private final RedisTemplate<String, Object> redisTemplate;
 
   private static final String KEY_PREFIX = "shorturl:";
   private static final String ORIGINAL_URL_KEY_PREFIX = "shorturl:original:";
+  public static final String SHORTURL_CLICKS = "shorturl:clicks:*";
 
   @Transactional
   @Scheduled(fixedRate = 60000)
