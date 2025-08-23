@@ -15,8 +15,4 @@ public interface ShortUrlRepository extends JpaRepository<ShortUrl, Long> {
 
   Optional<ShortUrl> findByOriginalUrl(String originalUrl);
 
-  @Modifying
-  @Query("update ShortUrl s set s.isActive = true, s.clickCount = s.clickCount + 1 where s.shortKey = :shortKey")
-  void incrementClickCount(@Param("shortKey") String shortKey);
-
 }
