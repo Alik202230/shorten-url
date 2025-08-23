@@ -22,6 +22,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.password.CompromisedPasswordChecker;
+import org.springframework.security.authentication.password.CompromisedPasswordDecision;
+import org.springframework.security.authentication.password.CompromisedPasswordException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +41,7 @@ public class UserServiceImpl implements UserService {
   private final PasswordEncoder passwordEncoder;
   private final TokenRepository tokenRepository;
   private final ShortUrlRepository shortUrlRepository;
+  private final CompromisedPasswordChecker compromisedPasswordChecker;
 
   @Override
   @Transactional
@@ -77,7 +81,7 @@ public class UserServiceImpl implements UserService {
 
 
   @Override
-  public Optional<UserAuthResponse> login(UserAuthRequest request) {
+  public UserAuthResponse login(UserAuthRequest request) {
     Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
 
     if (optionalUser.isEmpty())
@@ -87,6 +91,11 @@ public class UserServiceImpl implements UserService {
 
     if (!passwordEncoder.matches(request.getPassword(), user.getPassword()))
       throw new EmailOrPasswordException("Wrong password or email");
+
+    CompromisedPasswordDecision decision = compromisedPasswordChecker.check(request.getPassword());
+
+    if (decision.isCompromised())
+      throw new CompromisedPasswordException("The provided password is compromised and cannot be used.");
 
     final String accessToken = jwtTokenUtil.generateToken(user.getEmail());
     final String refreshToken = jwtTokenUtil.refreshToken(accessToken);
@@ -98,7 +107,7 @@ public class UserServiceImpl implements UserService {
     revokeAllUserTokens(user);
     saveUserToken(user, accessToken, refreshToken);
 
-    return Optional.of(response);
+    return response;
 
   }
 

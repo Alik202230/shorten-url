@@ -18,9 +18,11 @@ import am.itspace.shortest.url.util.jwt.JwtTokenUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.password.CompromisedPasswordChecker;
+import org.springframework.security.authentication.password.CompromisedPasswordDecision;
+import org.springframework.security.authentication.password.CompromisedPasswordException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
@@ -35,10 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
@@ -54,11 +53,15 @@ class UserServiceImplTest {
   @Mock
   private ShortUrlRepository shortUrlRepository;
 
+  @Mock
+  private CompromisedPasswordChecker compromisedPasswordChecker;
+
+  @InjectMocks
   private UserServiceImpl userService;
 
   @BeforeEach
   void setUp() {
-    userService = new UserServiceImpl(userRepository, jwtTokenUtil, passwordEncoder, tokenRepository, shortUrlRepository);
+    MockitoAnnotations.openMocks(this);
   }
 
   @Test
@@ -136,6 +139,31 @@ class UserServiceImplTest {
     ));
 
     verify(shortUrlRepository, never()).save(any(ShortUrl.class));
+  }
+
+  @Test
+  void register_whenPasswordIsCompromised_throwsException() {
+    SaveUserRequest compromisedReq = SaveUserRequest.builder()
+        .firstName("Jane")
+        .lastName("Doe")
+        .email("jane.doe@example.com")
+        .password("password123")
+        .originalUrl("https://example.com/other-page")
+        .build();
+
+    when(userRepository.findByEmail(compromisedReq.getEmail())).thenReturn(Optional.empty());
+
+
+
+    CompromisedPasswordDecision compromisedDecision = mock(CompromisedPasswordDecision.class);
+    when(compromisedDecision.isCompromised()).thenReturn(true);
+    when(compromisedPasswordChecker.check(Mockito.anyString())).thenReturn(compromisedDecision);
+
+    assertThrows(CompromisedPasswordException.class, () -> userService.register(compromisedReq));
+    verify(userRepository, never()).save(any(User.class));
+    verify(tokenRepository, never()).save(any(Token.class));
+    verify(jwtTokenUtil, never()).generateToken(anyString());
+    verify(jwtTokenUtil, never()).refreshToken(anyString());
   }
 
   @Test
@@ -240,10 +268,8 @@ class UserServiceImplTest {
     when(tokenRepository.findAllValidTokensByUserId(user.getId())).thenReturn(List.of(oldToken));
     when(tokenRepository.save(any(Token.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-    Optional<UserAuthResponse> response = userService.login(authRequest);
+    UserAuthResponse authResponse = userService.login(authRequest);
 
-    assertTrue(response.isPresent(), "Response should be present for successful login");
-    UserAuthResponse authResponse = response.get();
     assertEquals("mockedAccessToken", authResponse.getAccessToken());
     assertEquals("mockedRefreshToken", authResponse.getRefreshToken());
     assertEquals("Test", authResponse.getFirstName());
@@ -272,7 +298,6 @@ class UserServiceImplTest {
 
   @Test
   void login_whenUserDoesNotExist_throwsUserNotFoundException() {
-    // Given
     UserAuthRequest authRequest = UserAuthRequest.builder()
         .email("nonexistent@example.com")
         .password("password123")

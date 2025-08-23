@@ -37,10 +37,9 @@ public class ShortUrlController {
 
   @GetMapping("/{shortKey}")
   public ResponseEntity<Void> redirect(@PathVariable String shortKey) {
-    Optional<String> originalUrlOptional = shortUrlService.getOriginalUrl(shortKey);
+    String originalUrl = shortUrlService.getOriginalUrl(shortKey);
 
-    if (originalUrlOptional.isPresent()) {
-      String originalUrl = originalUrlOptional.get();
+    if (originalUrl != null) {
       log.info("Redirecting to {}", originalUrl);
 
       shortUrlService.updateClickCount(shortKey);

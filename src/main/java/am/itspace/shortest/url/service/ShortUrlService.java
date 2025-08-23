@@ -11,7 +11,7 @@ public interface ShortUrlService {
 
   ShortUrlResponse createShortUrl(ShortUrlRequest request, CurrentUser currentUser);
 
-  Optional<String> getOriginalUrl(String shortKey);
+  String getOriginalUrl(String shortKey);
 
   void updateClickCount(String shortKey);
 

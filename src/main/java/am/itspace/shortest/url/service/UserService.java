@@ -13,7 +13,7 @@ public interface UserService {
 
   void register(SaveUserRequest request);
 
-  Optional<UserAuthResponse> login(UserAuthRequest request);
+  UserAuthResponse login(UserAuthRequest request);
 
   RefreshTokenResponse refreshToken(HttpServletRequest request, HttpServletResponse response);
 

@@ -33,8 +33,8 @@ public class UserController {
   }
 
   @PostMapping("/login")
-  public ResponseEntity<Optional<UserAuthResponse>> login(@RequestBody @Valid UserAuthRequest userAuthRequest) {
-    Optional<UserAuthResponse> response = userService.login(userAuthRequest);
+  public ResponseEntity<UserAuthResponse> login(@RequestBody @Valid UserAuthRequest userAuthRequest) {
+    UserAuthResponse response = userService.login(userAuthRequest);
     return ResponseEntity.status(HttpStatus.OK).body(response);
   }
 

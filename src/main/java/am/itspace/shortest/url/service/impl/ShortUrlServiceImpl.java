@@ -77,23 +77,24 @@ public class ShortUrlServiceImpl implements ShortUrlService {
 
   @Override
   @Cacheable(cacheNames = "shortUrl", key = "#shortKey")
-  public Optional<String> getOriginalUrl(String shortKey) {
+  public String getOriginalUrl(String shortKey) {
     String clickCountKey = BY_KEY_CLICK_COUNT_PREFIX + shortKey;
 
     ShortUrl cached = (ShortUrl) redisTemplate.opsForValue().get(BY_KEY_PREFIX + shortKey);
     if (cached != null) {
       redisTemplate.opsForValue().increment(clickCountKey);
-      return Optional.of(cached.getOriginalUrl());
+      return cached.getOriginalUrl();
     }
 
     return shortUrlRepository.findByShortKey(shortKey)
-        .map(ShortUrl::getOriginalUrl);
+        .map(ShortUrl::getOriginalUrl)
+        .orElse(null);
   }
 
   @Override
   @Transactional
   public void updateClickCount(String shortKey) {
-    shortUrlRepository.incrementClickCount(shortKey);
+    redisTemplate.opsForValue().increment(KEY_PREFIX + shortKey);
   }
 
   @Override

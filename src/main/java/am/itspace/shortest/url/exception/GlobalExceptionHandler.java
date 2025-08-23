@@ -2,7 +2,10 @@ package am.itspace.shortest.url.exception;
 
 import am.itspace.shortest.url.dto.error.ErrorResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.password.CompromisedPasswordDecision;
+import org.springframework.security.authentication.password.CompromisedPasswordException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -24,6 +27,11 @@ public class GlobalExceptionHandler {
       errors.put(fieldName, errorMessage);
     });
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+  }
+
+  @ExceptionHandler(CompromisedPasswordException.class)
+  public ProblemDetail handleCompromisedPasswordException(CompromisedPasswordException exception) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
   }
 
   @ExceptionHandler({

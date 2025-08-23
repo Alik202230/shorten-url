@@ -8,10 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Component
 @RequiredArgsConstructor
@@ -63,11 +60,16 @@ public class ShortUrlScheduler {
   public void syncClickCount() {
     Set<String> clickKeys = redisTemplate.keys(SHORTURL_CLICKS);
 
-    for (String clickKey : clickKeys) {
-      String shortKey = clickKey.substring(SHORTURL_CLICKS1.length());
-      shortUrlRepository.findByShortKey(shortKey).ifPresent(shortUrl -> {
-        redisTemplate.opsForValue().increment(SHORTURL_CLICKS1 + shortUrl.getShortKey());
-      });
+    for(String key : clickKeys){
+
+      String shortKey = key.substring(SHORTURL_CLICKS.length());
+      String count = Objects.requireNonNull(redisTemplate.opsForValue().get(clickKeys)).toString();
+      Integer clickCount = Integer.valueOf(count);
+
+      shortUrlRepository.findByShortKey(shortKey)
+          .ifPresent(shortUrl -> {
+            shortUrl.setClickCount(shortUrl.getClickCount() + clickCount);
+          });
     }
   }
 
