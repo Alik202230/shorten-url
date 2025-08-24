@@ -45,7 +45,7 @@ public class UserServiceImpl implements UserService {
 
   @Override
   @Transactional
-  public void register(SaveUserRequest request) {
+  public UserAuthResponse register(SaveUserRequest request) {
 
     if (userRepository.findByEmail(request.getEmail()).isPresent())
       throw new UserAlreadyExistsException("User with " + request.getEmail() + " already exists");
@@ -71,7 +71,7 @@ public class UserServiceImpl implements UserService {
 
     saveUserToken(savedUser, accessToken, refreshToken);
 
-    UserAuthResponse.builder()
+    return UserAuthResponse.builder()
         .firstName(request.getFirstName())
         .lastName(request.getLastName())
         .accessToken(accessToken)

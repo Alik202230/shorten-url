@@ -9,7 +9,7 @@ import org.springframework.security.web.authentication.password.HaveIBeenPwnedRe
 public class CompromisedPasswordCheckerConfig {
 
   @Bean
-  public CompromisedPasswordChecker compromisedPasswordChecker(){
+  public CompromisedPasswordChecker compromisedPasswordChecker() {
     return new HaveIBeenPwnedRestApiPasswordChecker();
   }
 }

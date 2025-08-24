@@ -34,10 +34,17 @@ public class ShortUrlServiceImpl implements ShortUrlService {
   private static final String BY_KEY_PREFIX = KEY_PREFIX + "by_key:";
   private static final Duration CACHE_TTL = Duration.ofHours(24);
   private static final String BY_KEY_CLICK_COUNT_PREFIX = "shortUrl:clicks:";
+  private static final String ACTIVE_URLS = "active.urls";
 
 
   @Override
   public ShortUrlResponse createShortUrl(ShortUrlRequest request, CurrentUser currentUser) {
+    ShortUrl findShortUrlInCache = (ShortUrl) redisTemplate.opsForValue().get(BY_ORIGINAL_PREFIX + request.getOriginalUrl());
+
+    if (findShortUrlInCache != null) {
+      return ShortUrlMapper.toShortUrlResponse(findShortUrlInCache);
+    }
+
     User user = userRepository.findById(currentUser.getUser().getId())
         .orElseThrow(() -> new UserNotFoundException("User not found"));
 
@@ -95,6 +102,7 @@ public class ShortUrlServiceImpl implements ShortUrlService {
   @Transactional
   public void updateClickCount(String shortKey) {
     redisTemplate.opsForValue().increment(KEY_PREFIX + shortKey);
+    redisTemplate.opsForSet().add(ACTIVE_URLS, shortKey);
   }
 
   @Override

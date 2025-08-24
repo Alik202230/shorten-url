@@ -7,11 +7,9 @@ import am.itspace.shortest.url.dto.response.UserAuthResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import java.util.Optional;
-
 public interface UserService {
 
-  void register(SaveUserRequest request);
+  UserAuthResponse register(SaveUserRequest request);
 
   UserAuthResponse login(UserAuthRequest request);
 
