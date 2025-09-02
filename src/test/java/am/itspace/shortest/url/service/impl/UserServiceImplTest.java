@@ -4,14 +4,10 @@ import am.itspace.shortest.url.dto.request.CreateUserRequest;
 import am.itspace.shortest.url.dto.request.UserAuthRequest;
 import am.itspace.shortest.url.dto.response.UserAuthResponse;
 import am.itspace.shortest.url.exception.CredentialException;
-import am.itspace.shortest.url.exception.EmailOrPasswordException;
 import am.itspace.shortest.url.exception.UserAlreadyExistsException;
-import am.itspace.shortest.url.exception.UserNotFoundException;
 import am.itspace.shortest.url.model.ShortUrl;
-import am.itspace.shortest.url.model.Token;
 import am.itspace.shortest.url.model.User;
 import am.itspace.shortest.url.model.enums.Role;
-import am.itspace.shortest.url.model.enums.TokenType;
 import am.itspace.shortest.url.repository.ShortUrlRepository;
 import am.itspace.shortest.url.repository.TokenRepository;
 import am.itspace.shortest.url.repository.UserRepository;
@@ -19,25 +15,17 @@ import am.itspace.shortest.url.util.jwt.JwtTokenUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.password.CompromisedPasswordChecker;
 import org.springframework.security.authentication.password.CompromisedPasswordDecision;
 import org.springframework.security.authentication.password.CompromisedPasswordException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.StreamSupport;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
