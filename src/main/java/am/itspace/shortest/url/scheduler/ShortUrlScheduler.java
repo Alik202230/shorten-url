@@ -22,7 +22,7 @@ public class ShortUrlScheduler {
   private static final String KEY_PREFIX = "short_url:";
   private static final String ORIGINAL_URL_KEY_PREFIX = "short_url:original:";
   private static final String SHORT_URL_CLICKS = "short_url:clicks:*";
-  private static final String ACTIEVE_URLS = "active.urls";
+  private static final String ACTIVE_URLS = "active.urls";
 
   @Transactional
   @Scheduled(cron = "${scheduler.cron}")
@@ -69,7 +69,7 @@ public class ShortUrlScheduler {
       return;
     }
 
-    Set<Object> activeUrlKeys = redisTemplate.opsForSet().members("active.urls");
+    Set<Object> activeUrlKeys = redisTemplate.opsForSet().members(ACTIVE_URLS);
     if (activeUrlKeys == null) {
       activeUrlKeys = Collections.emptySet();
     }
@@ -82,7 +82,7 @@ public class ShortUrlScheduler {
       log.info("Deleted {} inactive URL keys from the cache.", deletedCount);
     }
 
-    redisTemplate.delete(ACTIEVE_URLS);
+    redisTemplate.delete(ACTIVE_URLS);
   }
 
   @Transactional
