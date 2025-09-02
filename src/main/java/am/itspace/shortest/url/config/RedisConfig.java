@@ -27,8 +27,4 @@ public class RedisConfig {
     template.afterPropertiesSet();
     return template;
   }
-
-//  public PlatformTransactionManager transactionManager() {
-//    return new DataSourceTransactionManager(data)
-//  }
 }

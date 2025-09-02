@@ -5,11 +5,11 @@ services:
     image: postgres:12.2-alpine
     container_name: short_url_postgres
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST}:${POSTGRES_HOST}"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: root
-      POSTGRES_DB: short_url_db
+      POSTGRES_USER: "${POSTGRES_USERNAME}"
+      POSTGRES_PASSWORD: "${POSTGRES_PWD}"
+      POSTGRES_DB: "${DB_URL}"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     restart: always
@@ -18,7 +18,7 @@ services:
     image: redis:latest
     container_name: short_url_redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT}:${REDIS_PORT}"
     volumes:
       - redis-data:/data
     restart: always
