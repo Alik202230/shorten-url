@@ -1,115 +1,70 @@
-Welcome to the URL Shortener Service! This is a simple, high-performance application built to create short, memorable links. It leverages Redis for blazing-fast lookups and atomic click counting, ensuring efficiency and scalability.
+# Shortest-URL
 
-✨ Features
-URL Shortening: Easily convert long URLs into short keys.
+Shortest-URL is a URL shortening service that allows users to create short, manageable links for long URLs. It supports user authentication, caching for fast access, and bulk URL processing.
 
-High-Performance Caching: Uses Redis to store recent URLs, drastically reducing database load.
+## Features
 
-Atomic Click Tracking: Leverages Redis's atomic operations to accurately count clicks without race conditions.
+- **Create Short URLs**: Generate short URLs from long original URLs.
+- **Read/Fetch URLs**: Retrieve the original URL using the short key.
+- **User Authentication**: Secure login and registration with JWT-based access and refresh tokens.
+- **Bulk URL Processing**: Efficiently create multiple short URLs at once.
+- **Caching**: Frequently accessed URLs are cached using Redis for fast retrieval.
+- **Compromised Password Check**: Prevents the use of compromised passwords during login and registration.
 
-Scheduled Synchronization: Periodically syncs click counts from Redis to the database for long-term persistence.
+## Tech Stack
 
-Automated Cleanup: A scheduled task automatically removes inactive or expired URLs.
+- **Backend**: Java, Spring Boot
+- **Database**: PostgreSQL (or any relational DB)
+- **Caching**: Redis
+- **Security**: Spring Security, JWT (Access & Refresh Tokens)
+- **Testing**: JUnit 5, Mockito
+- **Build Tool**: Maven
+- **Optional**: Docker for containerized deployment
 
-💻 Tech Stack
-Backend Framework: Spring Boot
+## Project Structure
 
-Caching & Atomic Counters: Redis
+- `User` management with roles and authentication.
+- `ShortUrl` service for creating and managing shortened URLs.
+- `Redis` caching layer for both short keys and original URLs.
+- `JWT` tokens for secure API access.
+- `Bulk processing` support for handling multiple URLs efficiently.
 
-Database: Spring Data JPA (e.g., PostgreSQL, MySQL)
+## Installation
 
-Build Tool: Maven
+1. Clone the repository:
 
-🚀 How It Works
-The service uses a two-tiered approach to maximize performance and data integrity:
+```bash
+git clone https://github.com/Alik202230/shorten-url
+cd shortest-url
+```
+2. Configure your database and Redis in application.yml.
+3. Bulid the project:
 
-URL Creation:
-
-New URL? 🤔 The service first checks if the original URL is already in the Redis cache.
-
-Found it! 🎉 If so, it immediately returns the existing short key, saving a trip to the database.
-
-Not found! 📝 A new unique key is generated, and the URL is saved to both the database (for persistence) and Redis (for fast lookups).
-
-Click Tracking:
-
-When a short URL is clicked, the service looks it up in Redis.
-
-It then uses the atomic INCREMENT command to safely and instantly add to the click count in Redis. This prevents race conditions, ensuring every click is counted accurately. 📈
-
-The user is then redirected to the original URL.
-
-Scheduled Sync:
-
-A nightly or hourly scheduled task ⏰ runs in the background.
-
-It fetches all the click counts from Redis.
-
-It updates the corresponding records in the database, ensuring the click data is permanently stored.
-
-The Redis counters are then reset to zero, ready to track new clicks.
-
-🛠️ Getting Started
-Prerequisites
-Java 17 or higher
-
-Maven
-
-Running instances of Redis and a database (e.g., PostgreSQL)
-
-Setup and Run
-Clone the repository:
-
-Bash
-
-git clone <repository_url>
-cd url-shortener-service
-Configure your application.properties file with your database and Redis connection details.
-
-Properties
-
-# Database Configuration
-spring.datasource.url=jdbc:postgresql://localhost:5432/your_database
-spring.datasource.username=your_username
-spring.datasource.password=your_password
-spring.jpa.hibernate.ddl-auto=update
-
-# Redis Configuration
-spring.data.redis.host=localhost
-spring.data.redis.port=6379
-Build the project:
-
-Bash
-
+```bash
 mvn clean install
-Run the application:
+```
+4. Run the application:
 
-Bash
-
+```bash
 mvn spring-boot:run
-📚 API Endpoints
-Create a Short URL
-Endpoint: POST /api/v1/shorten
+```
 
-Request Body:
+## API Endpoints
 
-JSON
+- POST /auth/register: Register a new user.
 
-{
-"originalUrl": "https://www.example.com/this-is-a-very-long-url"
-}
-Response:
+- POST /auth/login: Authenticate a user and obtain JWT tokens.
 
-JSON
+- POST /shorten: Create a new short URL.
 
-{
-"shortKey": "abc1234",
-"originalUrl": "https://www.example.com/this-is-a-very-long-url",
-"shortUrl": "http://your-app-url/abc1234"
-}
-Redirect to Original URL
-Endpoint: GET /{shortKey}
+- GET /{shortKey}: Redirect to the original URL.
 
-Example: http://your-app-url/abc1234
+- POST /shorten/bulk: Create multiple short URLs in a single request.
 
-Behavior: Redirects the user to the originalUrl and increments the click count.
+## Notes
+
+- Redis caching improves performance for frequently accessed URLs.
+
+- Compromised passwords are automatically rejected during login and registration.
+
+- JWT tokens are used for secure API communication.
