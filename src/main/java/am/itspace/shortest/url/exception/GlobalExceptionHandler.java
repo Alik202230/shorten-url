@@ -37,6 +37,7 @@ public class GlobalExceptionHandler {
       UserNotFoundException.class,
       UserAlreadyExistsException.class,
       EmailOrPasswordException.class,
+      CredentialException.class
   })
   public ResponseEntity<ErrorResponse> handleException(Exception exception) {
     return switch (exception) {
@@ -59,6 +60,16 @@ public class GlobalExceptionHandler {
         yield new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
       }
       case EmailOrPasswordException ex -> {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .message(ex.getMessage())
+            .statusCode(HttpStatus.NOT_FOUND.value())
+            .status(HttpStatus.NOT_FOUND)
+            .timestamp(LocalDateTime.now())
+            .build();
+        yield new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+      }
+
+      case CredentialException ex -> {
         ErrorResponse errorResponse = ErrorResponse.builder()
             .message(ex.getMessage())
             .statusCode(HttpStatus.NOT_FOUND.value())

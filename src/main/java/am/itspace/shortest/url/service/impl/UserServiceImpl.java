@@ -1,12 +1,11 @@
 package am.itspace.shortest.url.service.impl;
 
-import am.itspace.shortest.url.dto.request.SaveUserRequest;
+import am.itspace.shortest.url.dto.request.CreateUserRequest;
 import am.itspace.shortest.url.dto.request.UserAuthRequest;
 import am.itspace.shortest.url.dto.response.RefreshTokenResponse;
 import am.itspace.shortest.url.dto.response.UserAuthResponse;
-import am.itspace.shortest.url.exception.EmailOrPasswordException;
+import am.itspace.shortest.url.exception.CredentialException;
 import am.itspace.shortest.url.exception.UserAlreadyExistsException;
-import am.itspace.shortest.url.exception.UserNotFoundException;
 import am.itspace.shortest.url.mapper.UserMapper;
 import am.itspace.shortest.url.model.ShortUrl;
 import am.itspace.shortest.url.model.Token;
@@ -45,7 +44,7 @@ public class UserServiceImpl implements UserService {
 
   @Override
   @Transactional
-  public UserAuthResponse register(SaveUserRequest request) {
+  public UserAuthResponse register(CreateUserRequest request) {
 
     if (userRepository.findByEmail(request.getEmail()).isPresent())
       throw new UserAlreadyExistsException("User with " + request.getEmail() + " already exists");
@@ -84,13 +83,10 @@ public class UserServiceImpl implements UserService {
   public UserAuthResponse login(UserAuthRequest request) {
     Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
 
-    if (optionalUser.isEmpty())
-      throw new UserNotFoundException("User with email " + request.getEmail() + " not found");
+    if (optionalUser.isEmpty() || !passwordEncoder.matches(request.getPassword(), optionalUser.get().getPassword()))
+      throw new CredentialException("Invalid Credentials....");
 
     User user = optionalUser.get();
-
-    if (!passwordEncoder.matches(request.getPassword(), user.getPassword()))
-      throw new EmailOrPasswordException("Wrong password or email");
 
     CompromisedPasswordDecision decision = compromisedPasswordChecker.check(request.getPassword());
 

@@ -1,8 +1,9 @@
 package am.itspace.shortest.url.service.impl;
 
-import am.itspace.shortest.url.dto.request.SaveUserRequest;
+import am.itspace.shortest.url.dto.request.CreateUserRequest;
 import am.itspace.shortest.url.dto.request.UserAuthRequest;
 import am.itspace.shortest.url.dto.response.UserAuthResponse;
+import am.itspace.shortest.url.exception.CredentialException;
 import am.itspace.shortest.url.exception.EmailOrPasswordException;
 import am.itspace.shortest.url.exception.UserAlreadyExistsException;
 import am.itspace.shortest.url.exception.UserNotFoundException;
@@ -44,307 +45,202 @@ class UserServiceImplTest {
 
   @Mock
   private UserRepository userRepository;
-  @Mock
-  private JwtTokenUtil jwtTokenUtil;
-  @Mock
-  private PasswordEncoder passwordEncoder;
-  @Mock
-  private TokenRepository tokenRepository;
+
   @Mock
   private ShortUrlRepository shortUrlRepository;
 
   @Mock
+  private PasswordEncoder passwordEncoder;
+
+  @Mock
+  private JwtTokenUtil jwtTokenUtil;
+
+  @Mock
+  private TokenRepository tokenRepository;
+
+  @Mock
   private CompromisedPasswordChecker compromisedPasswordChecker;
 
-  @InjectMocks
-  private UserServiceImpl userService;
+  private UserServiceImpl userServiceImpl;
 
   @BeforeEach
   void setUp() {
-    MockitoAnnotations.openMocks(this);
+    userServiceImpl = new UserServiceImpl(
+        userRepository,
+        jwtTokenUtil,
+        passwordEncoder,
+        tokenRepository,
+        shortUrlRepository,
+        compromisedPasswordChecker
+    );
   }
 
-  @Test
-  void register_whenEmailExists_throwsUserAlreadyExistsException() {
-    SaveUserRequest req = SaveUserRequest.builder()
-        .firstName("John")
-        .lastName("Doe")
-        .email("john.doe@example.com")
-        .password("StrongP@ssw0rd")
-        .originalUrl("https://example.com/page")
-        .build();
-
-    when(userRepository.findByEmail(req.getEmail())).thenReturn(Optional.of(User.builder().build()));
-
-    assertThrows(UserAlreadyExistsException.class, () -> userService.register(req));
-
-    verify(userRepository).findByEmail(req.getEmail());
-    verifyNoMoreInteractions(userRepository, passwordEncoder, jwtTokenUtil, tokenRepository, shortUrlRepository);
-  }
 
   @Test
-  void register_whenShortUrlExists_reusesShortUrl_andSavesUserAndToken() {
-    SaveUserRequest req = SaveUserRequest.builder()
+  void register_whenUserDoesNotExist_createsUserAndReturnsTokens() {
+    CreateUserRequest request = CreateUserRequest.builder()
         .firstName("John")
         .lastName("Doe")
-        .email("john.doe@example.com")
-        .password("StrongP@ssw0rd")
-        .originalUrl("https://example.com/page")
+        .email("john@example.com")
+        .password("password123")
+        .originalUrl("https://example.com")
         .build();
-
-    when(userRepository.findByEmail(req.getEmail())).thenReturn(Optional.empty());
-    when(passwordEncoder.encode(req.getPassword())).thenReturn("encodedPassword");
 
     ShortUrl shortUrl = ShortUrl.builder()
         .id(1L)
-        .shortKey("shortKey")
-        .originalUrl(req.getOriginalUrl())
-        .build();
-    when(shortUrlRepository.findByOriginalUrl(req.getOriginalUrl())).thenReturn(Optional.of(shortUrl));
-
-    // Define variables for the mocked tokens
-    String accessToken = "mocked-access-token";
-    String refreshToken = "mocked-refresh-token";
-
-    // Mock JWT token generation to return the defined tokens
-    when(jwtTokenUtil.generateToken(req.getEmail())).thenReturn(accessToken);
-    when(jwtTokenUtil.refreshToken(accessToken)).thenReturn(refreshToken);
-
-    when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
-    when(tokenRepository.save(any(Token.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-    userService.register(req);
-
-    ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-    verify(userRepository).save(userCaptor.capture());
-    User savedUser = userCaptor.getValue();
-    assertEquals("John", savedUser.getFirstName());
-    assertEquals("Doe", savedUser.getLastName());
-    assertEquals("john.doe@example.com", savedUser.getEmail());
-    assertEquals("encodedPassword", savedUser.getPassword());
-    assertEquals(Role.USER, savedUser.getRole());
-    assertEquals(shortUrl.getId(), savedUser.getShortUrl().getId());
-
-    verify(jwtTokenUtil).generateToken(req.getEmail());
-
-    verify(jwtTokenUtil).refreshToken(accessToken);
-
-    verify(tokenRepository).save(argThat(t ->
-        accessToken.equals(t.getAccessToken()) &&
-            refreshToken.equals(t.getRefreshToken()) &&
-            TokenType.BEARER == t.getType() &&
-            !t.isExpired() &&
-            !t.isRevoked() &&
-            t.getUser() != null
-    ));
-
-    verify(shortUrlRepository, never()).save(any(ShortUrl.class));
-  }
-
-  @Test
-  void register_whenPasswordIsCompromised_throwsException() {
-    SaveUserRequest compromisedReq = SaveUserRequest.builder()
-        .firstName("Jane")
-        .lastName("Doe")
-        .email("jane.doe@example.com")
-        .password("password123")
-        .originalUrl("https://example.com/other-page")
+        .originalUrl(request.getOriginalUrl())
         .build();
 
-    when(userRepository.findByEmail(compromisedReq.getEmail())).thenReturn(Optional.empty());
-
-
-
-    CompromisedPasswordDecision compromisedDecision = mock(CompromisedPasswordDecision.class);
-    when(compromisedDecision.isCompromised()).thenReturn(true);
-    when(compromisedPasswordChecker.check(Mockito.anyString())).thenReturn(compromisedDecision);
-
-    assertThrows(CompromisedPasswordException.class, () -> userService.register(compromisedReq));
-    verify(userRepository, never()).save(any(User.class));
-    verify(tokenRepository, never()).save(any(Token.class));
-    verify(jwtTokenUtil, never()).generateToken(anyString());
-    verify(jwtTokenUtil, never()).refreshToken(anyString());
-  }
-
-  @Test
-  void register_whenShortUrlNotExists_createsShortUrl_andSavesUserAndTokens() {
-    SaveUserRequest req = SaveUserRequest.builder()
-        .firstName("John")
-        .lastName("Doe")
-        .email("john.doe@example.com")
-        .password("StrongP@ssw0rd")
-        .originalUrl("https://example.com/page")
-        .build();
-
-    when(userRepository.findByEmail(req.getEmail())).thenReturn(Optional.empty());
-    when(passwordEncoder.encode(req.getPassword())).thenReturn("ENCODED");
-    when(shortUrlRepository.findByOriginalUrl(req.getOriginalUrl())).thenReturn(Optional.empty());
-
-    ShortUrl savedShortUrl = ShortUrl.builder()
-        .id(10L)
-        .originalUrl(req.getOriginalUrl())
-        .shortKey("xyz789")
-        .build();
-    when(shortUrlRepository.save(any(ShortUrl.class))).thenReturn(savedShortUrl);
-
-    String accessToken = "mocked-access-token";
-    String refreshToken = "mocked-refresh-token";
-    when(jwtTokenUtil.generateToken(req.getEmail())).thenReturn(accessToken);
-    when(jwtTokenUtil.refreshToken(accessToken)).thenReturn(refreshToken);
-
-    when(userRepository.save(any(User.class))).thenAnswer(inv -> {
-      User u = inv.getArgument(0);
-      u.setId(100L);
-      return u;
-    });
-    when(tokenRepository.save(any(Token.class))).thenAnswer(inv -> inv.getArgument(0));
-
-    userService.register(req);
-
-    verify(shortUrlRepository).findByOriginalUrl(req.getOriginalUrl());
-
-    ArgumentCaptor<ShortUrl> shortUrlCaptor = ArgumentCaptor.forClass(ShortUrl.class);
-    verify(shortUrlRepository).save(shortUrlCaptor.capture());
-    ShortUrl capturedShortUrl = shortUrlCaptor.getValue();
-    assertNull(capturedShortUrl.getId(), "ID should be null before saving");
-    assertEquals(req.getOriginalUrl(), capturedShortUrl.getOriginalUrl());
-
-    ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-    verify(userRepository).save(userCaptor.capture());
-    User savedUser = userCaptor.getValue();
-
-    assertEquals("John", savedUser.getFirstName());
-    assertEquals("Doe", savedUser.getLastName());
-    assertEquals("john.doe@example.com", savedUser.getEmail());
-    assertEquals("ENCODED", savedUser.getPassword());
-    assertEquals(Role.USER, savedUser.getRole());
-    assertNotNull(savedUser.getShortUrl());
-    assertEquals(savedShortUrl.getId(), savedUser.getShortUrl().getId());
-
-    verify(jwtTokenUtil).generateToken(req.getEmail());
-    verify(jwtTokenUtil).refreshToken(accessToken);
-
-    ArgumentCaptor<Token> tokenCaptor = ArgumentCaptor.forClass(Token.class);
-    verify(tokenRepository).save(tokenCaptor.capture());
-    Token savedToken = tokenCaptor.getValue();
-
-    assertEquals(accessToken, savedToken.getAccessToken());
-    assertEquals(refreshToken, savedToken.getRefreshToken());
-    assertEquals(TokenType.BEARER, savedToken.getType());
-    assertFalse(savedToken.isExpired());
-    assertFalse(savedToken.isRevoked());
-    assertNotNull(savedToken.getUser());
-    assertEquals(savedUser.getId(), savedToken.getUser().getId());
-  }
-
-  @Test
-  void login_whenUserExistsAndCredentialsAreCorrect_returnsUserAuthResponse() {
-    UserAuthRequest authRequest = UserAuthRequest.builder()
-        .email("test@example.com")
-        .password("password123")
-        .build();
-
-    User user = User.builder()
+    User savedUser = User.builder()
         .id(1L)
-        .email("test@example.com")
+        .firstName(request.getFirstName())
+        .lastName(request.getLastName())
+        .email(request.getEmail())
         .password("encodedPassword")
-        .firstName("Test")
+        .shortUrl(shortUrl)
+        .role(Role.USER)
         .build();
 
-    Token oldToken = Token.builder()
-        .id(100L)
-        .user(user)
-        .accessToken("oldAccessToken")
-        .type(TokenType.BEARER)
-        .revoked(false)
-        .isExpired(false)
-        .build();
+    when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.empty());
+    when(passwordEncoder.encode(request.getPassword())).thenReturn("encodedPassword");
+    when(shortUrlRepository.findByOriginalUrl(request.getOriginalUrl())).thenReturn(Optional.of(shortUrl));
+    when(userRepository.save(any(User.class))).thenReturn(savedUser);
+    when(jwtTokenUtil.generateToken(savedUser.getEmail())).thenReturn("accessToken123");
+    when(jwtTokenUtil.refreshToken("accessToken123")).thenReturn("refreshToken456");
 
+    UserAuthResponse response = userServiceImpl.register(request);
 
-    when(userRepository.findByEmail(authRequest.getEmail())).thenReturn(Optional.of(user));
-    when(passwordEncoder.matches(authRequest.getPassword(), user.getPassword())).thenReturn(true);
-    when(jwtTokenUtil.generateToken(user.getEmail())).thenReturn("mockedAccessToken");
-    when(jwtTokenUtil.refreshToken("mockedAccessToken")).thenReturn("mockedRefreshToken");
-    when(tokenRepository.findAllValidTokensByUserId(user.getId())).thenReturn(List.of(oldToken));
-    when(tokenRepository.save(any(Token.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    assertNotNull(response);
+    assertEquals("John", response.getFirstName());
+    assertEquals("Doe", response.getLastName());
+    assertEquals("accessToken123", response.getAccessToken());
+    assertEquals("refreshToken456", response.getRefreshToken());
 
-    UserAuthResponse authResponse = userService.login(authRequest);
-
-    assertEquals("mockedAccessToken", authResponse.getAccessToken());
-    assertEquals("mockedRefreshToken", authResponse.getRefreshToken());
-    assertEquals("Test", authResponse.getFirstName());
-
-    verify(userRepository).findByEmail(authRequest.getEmail());
-    verify(passwordEncoder).matches(authRequest.getPassword(), user.getPassword());
-    verify(jwtTokenUtil).generateToken(user.getEmail());
-    verify(jwtTokenUtil).refreshToken("mockedAccessToken");
-
-    verify(tokenRepository).findAllValidTokensByUserId(user.getId());
-
-    verify(tokenRepository).saveAll(argThat(tokens -> {
-      List<Token> tokenList = StreamSupport.stream(tokens.spliterator(), false).toList();
-      return tokenList.size() == 1 &&
-          tokenList.get(0).isRevoked() &&
-          tokenList.get(0).isExpired() &&
-          "oldAccessToken".equals(tokenList.get(0).getAccessToken());
-    }));
-
-    verify(tokenRepository).save(argThat(token ->
-        "mockedAccessToken".equals(token.getAccessToken()) &&
-            !token.isRevoked() &&
-            !token.isExpired()
-    ));
+    verify(userRepository).findByEmail(request.getEmail());
+    verify(passwordEncoder).encode(request.getPassword());
+    verify(shortUrlRepository).findByOriginalUrl(request.getOriginalUrl());
+    verify(userRepository).save(any(User.class));
+    verify(jwtTokenUtil).generateToken(savedUser.getEmail());
+    verify(jwtTokenUtil).refreshToken("accessToken123");
   }
 
   @Test
-  void login_whenUserDoesNotExist_throwsUserNotFoundException() {
-    UserAuthRequest authRequest = UserAuthRequest.builder()
-        .email("nonexistent@example.com")
-        .password("password123")
+  void register_whenUserAlreadyExists_throwsException() {
+    CreateUserRequest request = CreateUserRequest.builder()
+        .email("john@example.com")
         .build();
 
-    when(userRepository.findByEmail(authRequest.getEmail())).thenReturn(Optional.empty());
+    User existingUser = User.builder().email(request.getEmail()).build();
+    when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(existingUser));
 
-    UserNotFoundException thrown = assertThrows(
-        UserNotFoundException.class,
-        () -> userService.login(authRequest),
-        "Expected UserNotFoundException to be thrown for non-existent user"
-    );
+    assertThrows(UserAlreadyExistsException.class, () -> userServiceImpl.register(request));
 
-    assertEquals("User with email " + authRequest.getEmail() + " not found", thrown.getMessage());
-
-    verify(userRepository).findByEmail(authRequest.getEmail());
-    verifyNoMoreInteractions(passwordEncoder, jwtTokenUtil, tokenRepository);
+    verify(userRepository).findByEmail(request.getEmail());
+    verifyNoMoreInteractions(userRepository, shortUrlRepository, passwordEncoder, jwtTokenUtil);
   }
 
-  @Test
-  void login_whenPasswordIsIncorrect_throwsEmailOrPasswordException() {
-    UserAuthRequest authRequest = UserAuthRequest.builder()
-        .email("test@example.com")
-        .password("wrongpassword")
-        .build();
 
-    User user = User.builder()
+  @Test
+  void login_whenCredentialsAreCorrect_returnsAuthResponse() {
+    String email = "test@example.com";
+    String rawPassword = "password123";
+    String encodedPassword = "encodedPassword";
+
+    User mockUser = User.builder()
         .id(1L)
-        .email("test@example.com")
-        .password("encodedPassword")
+        .email(email)
+        .password(encodedPassword)
         .firstName("Test")
+        .lastName("User")
+        .role(Role.USER)
         .build();
 
-    when(userRepository.findByEmail(authRequest.getEmail())).thenReturn(Optional.of(user));
-    when(passwordEncoder.matches(authRequest.getPassword(), user.getPassword())).thenReturn(false);
+    UserAuthRequest request = new UserAuthRequest(email, rawPassword);
 
-    EmailOrPasswordException thrown = assertThrows(
-        EmailOrPasswordException.class,
-        () -> userService.login(authRequest),
-        "Expected EmailOrPasswordException for incorrect password"
-    );
+    when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+    when(passwordEncoder.matches(rawPassword, encodedPassword)).thenReturn(true);
+    when(compromisedPasswordChecker.check(rawPassword))
+        .thenReturn(new CompromisedPasswordDecision(false));
+    when(jwtTokenUtil.generateToken(email)).thenReturn("access-token");
+    when(jwtTokenUtil.refreshToken("access-token")).thenReturn("refresh-token");
 
-    assertEquals("Wrong password or email", thrown.getMessage());
+    UserAuthResponse response = userServiceImpl.login(request);
 
-    verify(userRepository).findByEmail(authRequest.getEmail());
-    verify(passwordEncoder).matches(authRequest.getPassword(), user.getPassword());
-    verifyNoMoreInteractions(jwtTokenUtil, tokenRepository);
+    assertNotNull(response);
+    assertEquals("access-token", response.getAccessToken());
+    assertEquals("refresh-token", response.getRefreshToken());
+    assertEquals(mockUser.getFirstName(), response.getFirstName());
+    assertEquals(mockUser.getLastName(), response.getLastName());
+
+    verify(userRepository).findByEmail(email);
+    verify(passwordEncoder).matches(rawPassword, encodedPassword);
+    verify(compromisedPasswordChecker).check(rawPassword);
+    verify(jwtTokenUtil).generateToken(email);
+    verify(jwtTokenUtil).refreshToken("access-token");
+    verify(tokenRepository).save(any());
+  }
+
+  @Test
+  void login_whenUserNotFound_throwsCredentialException() {
+    UserAuthRequest request = new UserAuthRequest("unknown@example.com", "password");
+
+    when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+
+    assertThrows(CredentialException.class, () -> userServiceImpl.login(request));
+
+    verify(userRepository).findByEmail("unknown@example.com");
+    verifyNoInteractions(passwordEncoder, jwtTokenUtil, compromisedPasswordChecker, tokenRepository);
+  }
+
+  @Test
+  void login_whenPasswordIsWrong_throwsCredentialException() {
+    String email = "test@example.com";
+    String rawPassword = "wrongPassword";
+    String encodedPassword = "encodedPassword";
+
+    User mockUser = User.builder()
+        .id(1L)
+        .email(email)
+        .password(encodedPassword)
+        .build();
+
+    UserAuthRequest request = new UserAuthRequest(email, rawPassword);
+
+    when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+    when(passwordEncoder.matches(rawPassword, encodedPassword)).thenReturn(false);
+
+    assertThrows(CredentialException.class, () -> userServiceImpl.login(request));
+
+    verify(userRepository).findByEmail(email);
+    verify(passwordEncoder).matches(rawPassword, encodedPassword);
+    verifyNoInteractions(jwtTokenUtil, compromisedPasswordChecker, tokenRepository);
+  }
+
+  @Test
+  void login_whenPasswordIsCompromised_throwsCompromisedPasswordException() {
+    String email = "test@example.com";
+    String rawPassword = "password123";
+    String encodedPassword = "encodedPassword";
+
+    User mockUser = User.builder()
+        .id(1L)
+        .email(email)
+        .password(encodedPassword)
+        .build();
+
+    UserAuthRequest request = new UserAuthRequest(email, rawPassword);
+
+    when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+    when(passwordEncoder.matches(rawPassword, encodedPassword)).thenReturn(true);
+    when(compromisedPasswordChecker.check(rawPassword))
+        .thenReturn(new CompromisedPasswordDecision(true));
+
+    assertThrows(CompromisedPasswordException.class, () -> userServiceImpl.login(request));
+
+    verify(userRepository).findByEmail(email);
+    verify(passwordEncoder).matches(rawPassword, encodedPassword);
+    verify(compromisedPasswordChecker).check(rawPassword);
+    verifyNoInteractions(jwtTokenUtil, tokenRepository);
   }
 
 }

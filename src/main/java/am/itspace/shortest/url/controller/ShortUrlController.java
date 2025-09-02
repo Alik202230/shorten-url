@@ -48,7 +48,7 @@ public class ShortUrlController {
   }
 
   @GetMapping("/status/{shortKey}")
-  public ResponseEntity<ShortUrlStatusAndCountResponse> getStatusAndClickCount(@PathVariable String shortKey) {
+  public ResponseEntity<ShortUrlStatusAndCountResponse> getStatusAndClickCount(@PathVariable String shortKey, @AuthenticationPrincipal CurrentUser currentUser) {
     Optional<ShortUrlStatusAndCountResponse> statusAndCountResponse = shortUrlService.getStatusAndClickCount(shortKey);
     return statusAndCountResponse.map(ResponseEntity::ok)
         .orElseGet(() -> ResponseEntity.notFound().build());

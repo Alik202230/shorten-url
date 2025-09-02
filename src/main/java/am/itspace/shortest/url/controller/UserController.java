@@ -1,7 +1,7 @@
 package am.itspace.shortest.url.controller;
 
 
-import am.itspace.shortest.url.dto.request.SaveUserRequest;
+import am.itspace.shortest.url.dto.request.CreateUserRequest;
 import am.itspace.shortest.url.dto.request.UserAuthRequest;
 import am.itspace.shortest.url.dto.response.RefreshTokenResponse;
 import am.itspace.shortest.url.dto.response.UserAuthResponse;
@@ -25,8 +25,8 @@ public class UserController {
   private final UserService userService;
 
   @PostMapping("/register")
-  public ResponseEntity<UserAuthResponse> register(@RequestBody @Valid SaveUserRequest saveUserRequest) {
-    UserAuthResponse response = userService.register(saveUserRequest);
+  public ResponseEntity<UserAuthResponse> register(@RequestBody @Valid CreateUserRequest createUserRequest) {
+    UserAuthResponse response = userService.register(createUserRequest);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 

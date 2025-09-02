@@ -1,6 +1,6 @@
 package am.itspace.shortest.url.service;
 
-import am.itspace.shortest.url.dto.request.SaveUserRequest;
+import am.itspace.shortest.url.dto.request.CreateUserRequest;
 import am.itspace.shortest.url.dto.request.UserAuthRequest;
 import am.itspace.shortest.url.dto.response.RefreshTokenResponse;
 import am.itspace.shortest.url.dto.response.UserAuthResponse;
@@ -9,7 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 public interface UserService {
 
-  UserAuthResponse register(SaveUserRequest request);
+  UserAuthResponse register(CreateUserRequest request);
 
   UserAuthResponse login(UserAuthRequest request);
 

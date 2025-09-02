@@ -29,12 +29,12 @@ public class ShortUrlScheduler {
   public void clearCache() {
 
     List<ShortUrl> urlsToDelete = shortUrlRepository.findAll();
-    List<List<ShortUrl>> partitions = partition(urlsToDelete, 100);
+    List<List<ShortUrl>> partitions = partition(urlsToDelete);
 
     for (List<ShortUrl> partition : partitions) {
       if (partition.isEmpty()) continue;
 
-      shortUrlRepository.deleteAll(partition);
+      shortUrlRepository.deleteAllInBatch(partition);
 
       List<String> keysToDelete = new ArrayList<>(partition.size() * 2);
       for (ShortUrl url : partition) {
@@ -45,7 +45,7 @@ public class ShortUrlScheduler {
       if (!keysToDelete.isEmpty()) redisTemplate.delete(keysToDelete);
 
       List<ShortUrl> urlsToCache = shortUrlRepository.findAll();
-      List<List<ShortUrl>> partitionsToCache = partition(urlsToCache, 100);
+      List<List<ShortUrl>> partitionsToCache = partition(urlsToCache);
 
       for (List<ShortUrl> partitionToCache : partitionsToCache) {
 
@@ -74,11 +74,11 @@ public class ShortUrlScheduler {
       activeUrlKeys = Collections.emptySet();
     }
 
-    Set<String> inactiveUrlKeys = new HashSet<>(allUrlKeys);
+    Set<Object> inactiveUrlKeys = new HashSet<>(allUrlKeys);
     inactiveUrlKeys.removeAll(activeUrlKeys);
 
     if (!inactiveUrlKeys.isEmpty()) {
-      long deletedCount = redisTemplate.delete(inactiveUrlKeys);
+      long deletedCount = redisTemplate.delete(Collections.singleton(String.valueOf(inactiveUrlKeys)));
       log.info("Deleted {} inactive URL keys from the cache.", deletedCount);
     }
 
@@ -117,14 +117,14 @@ public class ShortUrlScheduler {
     redisTemplate.delete(clickKeys);
   }
 
-  private List<List<ShortUrl>> partition(List<ShortUrl> urls, int size) {
+  private List<List<ShortUrl>> partition(List<ShortUrl> urls) {
 
-    if (urls == null || urls.isEmpty() || size <= 0) return Collections.emptyList();
+    if (urls == null || urls.isEmpty()) return Collections.emptyList();
 
     List<List<ShortUrl>> partitions = new ArrayList<>();
     int start = 0;
     while (start < urls.size()) {
-      int end = Math.min(start + size, urls.size());
+      int end = Math.min(start + 100, urls.size());
       partitions.add(urls.subList(start, end));
       start = end;
     }

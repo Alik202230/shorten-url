@@ -39,10 +39,15 @@ public class ShortUrlServiceImpl implements ShortUrlService {
 
   @Override
   public ShortUrlResponse createShortUrl(ShortUrlRequest request, CurrentUser currentUser) {
+
     ShortUrl findShortUrlInCache = (ShortUrl) redisTemplate.opsForValue().get(BY_ORIGINAL_PREFIX + request.getOriginalUrl());
 
     if (findShortUrlInCache != null) {
       return ShortUrlMapper.toShortUrlResponse(findShortUrlInCache);
+    }
+
+    if (currentUser == null || currentUser.getUser() == null || currentUser.getUser().getId() == null) {
+      throw new UserNotFoundException("User not found");
     }
 
     User user = userRepository.findById(currentUser.getUser().getId())

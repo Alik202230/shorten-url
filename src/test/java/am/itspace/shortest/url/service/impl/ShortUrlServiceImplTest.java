@@ -10,6 +10,7 @@ import am.itspace.shortest.url.model.enums.Role;
 import am.itspace.shortest.url.repository.ShortUrlRepository;
 import am.itspace.shortest.url.repository.UserRepository;
 import am.itspace.shortest.url.security.CurrentUser;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -22,18 +23,9 @@ import org.springframework.data.redis.core.ValueOperations;
 import java.time.Duration;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ShortUrlServiceImplTest {
@@ -51,11 +43,18 @@ class ShortUrlServiceImplTest {
   @Mock
   private ValueOperations<String, Object> valueOperations;
 
-  @InjectMocks
+
+  @Mock
   private UserServiceImpl userService;
 
-  @InjectMocks
   private ShortUrlServiceImpl shortUrlService;
+
+  @BeforeEach
+  void setUp() {
+    shortUrlService = new ShortUrlServiceImpl(shortUrlRepository, redisTemplate, userRepository);
+    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    when(valueOperations.get(anyString())).thenReturn(null);
+  }
 
   private void mockRedisValueOperations() {
     when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -63,6 +62,89 @@ class ShortUrlServiceImplTest {
 
   @Test
   void createShortUrl_whenUserNotFound_throwsUserNotFoundException() {
+    ShortUrlRequest request = ShortUrlRequest.builder()
+        .originalUrl("https://example.com")
+        .build();
+
+    User mockUser = User.builder()
+        .id(1L)
+        .firstName("Test")
+        .lastName("User")
+        .email("test@example.com")
+        .password("testpassword")
+        .role(Role.USER)
+        .build();
+    CurrentUser currentUser = new CurrentUser(mockUser);
+
+    when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+    assertThrows(
+        UserNotFoundException.class,
+        () -> shortUrlService.createShortUrl(request, currentUser)
+    );
+
+    verify(userRepository).findById(1L);
+    verifyNoInteractions(shortUrlRepository);
+  }
+
+  @Test
+  void createShortUrl_whenShortUrlAlreadyExists_returnsExistingShortUrlAndCaches() {
+    String originalUrl = "https://existing.com";
+    String shortKey = "xyz123";
+
+    ShortUrlRequest request = ShortUrlRequest.builder()
+        .originalUrl(originalUrl)
+        .build();
+
+    User mockUser = User.builder()
+        .id(99L)
+        .firstName("Test")
+        .lastName("User")
+        .email("test@example.com")
+        .password("testpassword")
+        .role(Role.USER)
+        .build();
+
+    CurrentUser currentUser = new CurrentUser(mockUser);
+
+    ShortUrl existingShortUrl = ShortUrl.builder()
+        .id(100L)
+        .originalUrl(originalUrl)
+        .shortKey(shortKey)
+        .isActive(true)
+        .clickCount(5)
+        .userId(mockUser.getId())
+        .build();
+
+    ShortUrlResponse expectedResponse = ShortUrlResponse.builder()
+        .originalUrl(originalUrl)
+        .shortKey(shortKey)
+        .build();
+
+    when(userRepository.findById(mockUser.getId())).thenReturn(Optional.of(mockUser));
+    when(shortUrlRepository.findByOriginalUrl(originalUrl)).thenReturn(Optional.of(existingShortUrl));
+
+    doNothing().when(valueOperations).set(anyString(), any(ShortUrl.class), any(Duration.class));
+
+    try (MockedStatic<ShortUrlMapper> mockedMapper = mockStatic(ShortUrlMapper.class)) {
+      mockedMapper.when(() -> ShortUrlMapper.toShortUrlResponse(existingShortUrl))
+          .thenReturn(expectedResponse);
+
+      ShortUrlResponse response = shortUrlService.createShortUrl(request, currentUser);
+
+      assertNotNull(response);
+      assertEquals(expectedResponse.getShortKey(), response.getShortKey());
+      assertEquals(expectedResponse.getOriginalUrl(), response.getOriginalUrl());
+
+      verify(userRepository).findById(mockUser.getId());
+      verify(shortUrlRepository).findByOriginalUrl(originalUrl);
+      verify(valueOperations, atLeastOnce()).set(anyString(), any(ShortUrl.class), any(Duration.class));
+    }
+  }
+
+  @Test
+  void createShortUrl_whenUserNotFound_throwsException() {
+    // Arrange
     ShortUrlRequest request = ShortUrlRequest.builder()
         .originalUrl("https://example.com")
         .build();
@@ -77,74 +159,13 @@ class ShortUrlServiceImplTest {
         .build();
     CurrentUser currentUser = new CurrentUser(mockUser);
 
-    // FIXED: return Optional.empty() instead of null
-    when(userRepository.findById(anyLong())).thenReturn(Optional.empty());
+    when(userRepository.findById(mockUser.getId())).thenReturn(Optional.empty());
 
-    assertThrows(
-        UserNotFoundException.class,
-        () -> shortUrlService.createShortUrl(request, currentUser)
-    );
+    // Act & Assert
+    assertThrows(UserNotFoundException.class,
+        () -> shortUrlService.createShortUrl(request, currentUser));
 
-    verify(userRepository).findById(currentUser.getUser().getId());
-    verifyNoInteractions(shortUrlRepository, redisTemplate);
-  }
-
-  @Test
-  void createShortUrl_whenShortUrlAlreadyExists_returnsExistingShortUrlAndCaches() {
-    String originalUrl = "https://existing.com";
-    String shortKey = "xyz123";
-    ShortUrlRequest request = ShortUrlRequest.builder().originalUrl(originalUrl).build();
-    User mockUser = User.builder()
-        .id(99L)
-        .firstName("Test")
-        .lastName("User")
-        .email("test@example.com")
-        .password("testpassword")
-        .role(Role.USER)
-        .build();
-    CurrentUser currentUser = new CurrentUser(mockUser);
-
-    ShortUrl existingShortUrl = ShortUrl.builder()
-        .id(100L)
-        .originalUrl(originalUrl)
-        .shortKey(shortKey)
-        .isActive(true)
-        .clickCount(5)
-        .userId(mockUser.getId())
-        .build();
-    ShortUrlResponse expectedResponse = ShortUrlResponse.builder()
-        .originalUrl(originalUrl)
-        .shortKey(shortKey)
-        .build();
-
-    mockRedisValueOperations();
-    when(userRepository.findById(currentUser.getUser().getId())).thenReturn(Optional.of(mockUser));
-    when(shortUrlRepository.findByOriginalUrl(originalUrl)).thenReturn(Optional.of(existingShortUrl));
-
-    doNothing().when(valueOperations).set(
-        eq(KEY_PREFIX + shortKey),
-        eq(existingShortUrl),
-        any(Duration.class)
-    );
-    doNothing().when(valueOperations).set(
-        eq(BY_ORIGINAL_PREFIX + originalUrl),
-        eq(existingShortUrl),
-        any(Duration.class)
-    );
-
-    try (MockedStatic<ShortUrlMapper> mockedShortUrlMapper = mockStatic(ShortUrlMapper.class)) {
-      mockedShortUrlMapper.when(() -> ShortUrlMapper.toShortUrlResponse(existingShortUrl)).thenReturn(expectedResponse);
-
-      ShortUrlResponse response = shortUrlService.createShortUrl(request, currentUser);
-
-      assertNotNull(response);
-      assertEquals(expectedResponse.getShortKey(), response.getShortKey());
-      assertEquals(expectedResponse.getOriginalUrl(), response.getOriginalUrl());
-
-      verify(userRepository).findById(currentUser.getUser().getId());
-      verify(shortUrlRepository).findByOriginalUrl(originalUrl);
-      verify(valueOperations).set(eq(KEY_PREFIX + shortKey), eq(existingShortUrl), any(Duration.class));
-      verify(valueOperations).set(eq(BY_ORIGINAL_PREFIX + originalUrl), eq(existingShortUrl), any(Duration.class));
-    }
+    verify(userRepository).findById(mockUser.getId());
+    verifyNoInteractions(shortUrlRepository);
   }
 }

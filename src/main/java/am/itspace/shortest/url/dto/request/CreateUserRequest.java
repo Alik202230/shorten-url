@@ -12,7 +12,7 @@ import org.hibernate.validator.constraints.URL;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SaveUserRequest {
+public class CreateUserRequest {
 
   @NotBlank(message = "First name is required")
   @Size(max = 50, message = "First name must be at most 50 characters")
