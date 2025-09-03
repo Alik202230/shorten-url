@@ -59,8 +59,6 @@ mvn spring-boot:run
 
 - GET /{shortKey}: Redirect to the original URL.
 
-- POST /shorten/bulk: Create multiple short URLs in a single request.
-
 ## Notes
 
 - Redis caching improves performance for frequently accessed URLs.
